@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Cambodia Travel Planner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Google Brand -->
+    <!-- Application Structure Plan: The application uses a tabbed navigation system (Dashboard, Itinerary, Budget, Checklist) instead of a single long page. This structure was chosen to improve usability by allowing users to quickly jump to the information they need without excessive scrolling. The Dashboard provides a high-level visual overview with a map and key stats, acting as an engaging entry point. The Itinerary uses a collapsible accordion to manage detailed information cleanly, preventing user overload. This component-based structure makes the dense information from the report much more digestible and navigable. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: Geographic flow of the trip -> Goal: Visualize the journey -> Viz/Presentation Method: Embeddable Google My Map -> Interaction: User creates and embeds their own map with custom points and routes -> Justification: Provides maximum personalization and interactivity for planning hotels and routes, which is superior to a static map. Library/Method: HTML iframe.
+        - Report Info: Budget breakdown table -> Goal: Compare spending allocations -> Viz/Presentation Method: Donut Chart -> Interaction: Hover to see details -> Justification: Offers a quick, scannable visual comparison of where the money goes, which is more effective than reading a table. Library/Method: Chart.js.
+        - Report Info: Budget table -> Goal: Allow user personalization and tracking -> Viz/Presentation Method: Interactive HTML Table with input fields -> Interaction: User enters actual costs, total dynamically updates -> Justification: Transforms a static planner into a functional, personal budgeting tool. Library/Method: HTML/JS.
+        - Report Info: Week-by-week activities -> Goal: Organize detailed text -> Viz/Presentation Method: Accordion -> Interaction: Click to expand/collapse -> Justification: Manages a large amount of information in a compact space, ideal for mobile and preventing cognitive overload. Library/Method: HTML/CSS/JS.
+        - CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8f9fa;
+            color: #3c4043;
+        }
+        .nav-link {
+            transition: all 0.3s ease;
+            border-bottom: 2px solid transparent;
+        }
+        .nav-link.active {
+            color: #1a73e8; 
+            border-bottom-color: #1a73e8;
+        }
+        .content-section {
+            display: none;
+        }
+        .content-section.active {
+            display: block;
+        }
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease-in-out;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 450px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        .map-embed-container {
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+            padding-top: 75%; /* 4:3 Aspect Ratio */
+        }
+        .map-embed-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <header class="bg-white/80 backdrop-blur-lg sticky top-0 z-50 shadow-sm">
+        <nav class="container mx-auto px-6 py-3">
+            <div class="flex justify-center items-center">
+                <div class="flex space-x-4 sm:space-x-8 text-xs sm:text-base">
+                    <a href="#dashboard" class="nav-link font-medium pb-1">Dashboard</a>
+                    <a href="#itinerary" class="nav-link font-medium pb-1">Itinerary</a>
+                    <a href="#budget" class="nav-link font-medium pb-1">Budget</a>
+                    <a href="#checklist" class="nav-link font-medium pb-1">Checklist</a>
+                    <a href="#safety" class="nav-link font-medium pb-1">Safety</a>
+                    <a href="#resources" class="nav-link font-medium pb-1">Resources</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-6 py-8">
+        
+        <section id="dashboard" class="content-section">
+            <div class="text-center mb-12">
+                <h1 class="text-4xl md:text-5xl font-bold text-blue-600 mb-2">Cambodia Travel Planner</h1>
+                <p class="text-lg text-gray-600">Your interactive guide to an unforgettable one-month adventure.</p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-8 mb-12">
+                <div class="bg-white p-6 rounded-xl shadow-md text-center">
+                    <div class="text-blue-500 text-3xl mb-2">🗓️</div>
+                    <h3 class="text-xl font-bold mb-1">Duration</h3>
+                    <p class="text-3xl font-light text-gray-700">27 Days</p>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-md text-center">
+                    <div class="text-blue-500 text-3xl mb-2">📍</div>
+                    <h3 class="text-xl font-bold mb-1">Destinations</h3>
+                    <p class="text-3xl font-light text-gray-700">4+</p>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-md text-center">
+                    <div class="text-blue-500 text-3xl mb-2">💰</div>
+                    <h3 class="text-xl font-bold mb-1">Est. Budget</h3>
+                    <p class="text-3xl font-light text-gray-700">£2,000</p>
+                </div>
+            </div>
+            
+            <div class="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
+                <h2 class="text-2xl font-bold text-center mb-4">Your Interactive Journey Map</h2>
+                <p class="text-center text-gray-600 mb-6 max-w-3xl mx-auto">This is your live, interactive map. You can continue to edit it on <a href="https://google.com/mymaps" target="_blank" class="text-blue-600 font-medium hover:underline">Google My Maps</a>, and your changes will automatically appear here.</p>
+                
+                <div class="w-full rounded-xl overflow-hidden shadow-md">
+                    <div class="map-embed-container">
+                        <iframe src="https://www.google.com/maps/d/embed?mid=1h9vWHnEAwTg7rFDakbEp6Quuv0dSQbo"></iframe>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center mt-12">
+                <button id="clear-data-btn" class="bg-red-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-red-600 transition-colors">
+                    Clear & Reset Planner
+                </button>
+                <p class="text-sm text-gray-500 mt-2">This will erase all saved data from your browser.</p>
+            </div>
+        </section>
+
+        <section id="itinerary" class="content-section">
+            <div class="text-center mb-12">
+                <h1 class="text-4xl md:text-5xl font-bold text-blue-600 mb-2">Detailed Itinerary</h1>
+                <p class="text-lg text-gray-600">A flexible week-by-week guide. Click on a section to expand and see the details.</p>
+            </div>
+            <div class="space-y-4 max-w-4xl mx-auto">
+                <div id="week1" class="accordion-item bg-white rounded-xl shadow-md overflow-hidden">
+                    <button class="accordion-header w-full p-6 text-left flex justify-between items-center">
+                        <span class="text-xl font-bold">Aug 13 - Aug 18: Phnom Penh (Arrival & Exploration)</span>
+                        <span class="text-2xl font-light transform transition-transform duration-300">▼</span>
+                    </button>
+                    <div class="accordion-content">
+                        <div class="p-6 pt-0 text-gray-700 space-y-4">
+                             <div class="bg-blue-50 p-4 rounded-lg">
+                                <h5 class="font-bold mb-2">Arrival Details (Aug 13: Phnom Penh Int'l Airport - PNH)</h5>
+                                <div class="grid sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="text-sm font-medium text-gray-600">Flight Number</label>
+                                        <input type="text" id="arrival-flight-no" placeholder="e.g., QR970" class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                    </div>
+                                    <div>
+                                        <label class="text-sm font-medium text-gray-600">Arrival Time</label>
+                                        <input type="time" id="arrival-flight-time" class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                    </div>
+                                </div>
+                                <div class="mt-4">
+                                    <label class="text-sm font-medium text-gray-600">Document Link</label>
+                                    <input type="url" id="arrival-flight-link" placeholder="Paste link to flight ticket..." class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                </div>
+                            </div>
+                            <p class="pt-4">Arrive and settle into the bustling capital city of Cambodia.</p>
+                            <ul class="space-y-2 list-inside">
+                                <li class="flex items-center"><input type="checkbox" id="activity-pp-genocide" class="savable mr-3 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"><strong>Tuol Sleng Genocide Museum & Killing Fields</strong> (sobering but essential).</li>
+                                <li class="flex items-center"><input type="checkbox" id="activity-pp-palace" class="savable mr-3 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"><strong>The Royal Palace & Silver Pagoda.</strong></li>
+                                <li class="flex items-center"><input type="checkbox" id="activity-pp-mekong" class="savable mr-3 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">Walk along the Mekong River waterfront at sunset.</li>
+                                <li class="flex items-center"><input type="checkbox" id="activity-pp-market" class="savable mr-3 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">Explore the Russian Market and Central Market for souvenirs.</li>
+                            </ul>
+                            <div class="bg-blue-50 p-4 rounded-lg mt-4">
+                                <h5 class="font-bold mb-2">Accommodation Details (Aug 13 - Aug 18)</h5>
+                                <div class="grid sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="text-sm font-medium text-gray-600">Hotel Name</label>
+                                        <input type="text" id="hotel-name-pp1" placeholder="e.g., Palace Gate Hotel" class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                    </div>
+                                    <div>
+                                        <label class="text-sm font-medium text-gray-600">Booking Ref.</label>
+                                        <input type="text" id="hotel-ref-pp1" placeholder="e.g., #HOTEL1" class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                    </div>
+                                </div>
+                                <div class="mt-4">
+                                    <label class="text-sm font-medium text-gray-600">Document Link</label>
+                                    <input type="url" id="hotel-link-pp1" placeholder="Paste link to hotel confirmation..." class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                </div>
+                            </div>
+                             <div class="mt-4">
+                                <label class="text-sm font-medium text-gray-600">Notes</label>
+                                <textarea id="notes-pp1" placeholder="Any thoughts or recommendations..." class="savable mt-1 w-full p-2 rounded border border-gray-300 focus:ring-blue-500 focus:border-blue-500"></textarea>
+                            </div>
+                            <p><strong>Food to Try:</strong> Nom Banh Chok (Khmer noodles), street-side pork and rice, various dishes at the night market.</p>
+                        </div>
+                    </div>
+                </div>
+                <div id="week2" class="accordion-item bg-white rounded-xl shadow-md overflow-hidden">
+                    <button class="accordion-header w-full p-6 text-left flex justify-between items-center">
+                        <span class="text-xl font-bold">Aug 18 - Aug 25: The South (Sihanoukville & Islands)</span>
+                        <span class="text-2xl font-light transform transition-transform duration-300">▼</span>
+                    </button>
+                    <div class="accordion-content">
+                        <div class="p-6 pt-0 text-gray-700 space-y-4">
+                            <p>Head south for island life and relaxation, with a buffer night each side in the port town.</p>
+                            <div class="bg-blue-50 p-4 rounded-lg">
+                                <h5 class="font-bold mb-2">Transportation Details (Aug 18: Phnom Penh → Sihanoukville)</h5>
+                                <div class="grid sm:grid-cols-3 gap-4">
+                                    <div>
+                                        <label class="text-sm font-medium text-gray-600">Bus Company</label>
+                                        <input type="text" id="bus-company-pp-sihanouk" placeholder="e.g., Giant Ibis" class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                    </div>
+                                    <div>
+                                        <label class="text-sm font-medium text-gray-600">Departure Time</label>
+                                        <input type="time" id="bus-time-pp-sihanouk" class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                    </div>
+                                    <div>
+                                        <label class="text-sm font-medium text-gray-600">Booking Ref.</label>
+                                        <input type="text" id="bus-ref-pp-sihanouk" placeholder="e.g., #12345" class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                    </div>
+                                </div>
+                                <div class="mt-4">
+                                    <label class="text-sm font-medium text-gray-600">Document Link</label>
+                                    <input type="url" id="bus-link-pp-sihanouk" placeholder="Paste link to bus ticket..." class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                </div>
+                            </div>
+                             <h4 class="font-bold text-lg pt-4">Sihanoukville (1 night)</h4>
+                             <p>Stay overnight to catch an early ferry to the islands.</p>
+                             <div class="bg-blue-50 p-4 rounded-lg mt-4">
+                                <h5 class="font-bold mb-2">Accommodation Details (Aug 18 - Aug 19)</h5>
+                                <div class="grid sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="text-sm font-medium text-gray-600">Hotel Name</label>
+                                        <input type="text" id="hotel-name-sihanouk1" placeholder="e.g., Queenco Hotel" class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                    </div>
+                                    <div>
+                                        <label class="text-sm font-medium text-gray-600">Booking Ref.</label>
+                                        <input type="text" id="hotel-ref-sihanouk1" placeholder="e.g., #HOTEL2" class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                    </div>
+                                </div>
+                                 <div class="mt-4">
+                                    <label class="text-sm font-medium text-gray-600">Document Link</label>
+                                    <input type="url" id="hotel-link-sihanouk1" placeholder="Paste link to hotel confirmation..." class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                </div>
+                            </div>
+                             <h4 class="font-bold text-lg pt-4">Koh Rong / Koh Rong Samloem (5 nights)</h4>
+                            <ul class="space-y-2 list-inside">
+                                <li class="flex items-center"><input type="checkbox" id="activity-islands-snorkel" class="savable mr-3 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">Snorkeling or diving trips.</li>
+                                <li class="flex items-center"><input type="checkbox" id="activity-islands-plankton" class="savable mr-3 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"><strong>Bioluminescent plankton</strong> tour at night.</li>
+                                <li class="flex items-center"><input type="checkbox" id="activity-islands-beach" class="savable mr-3 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">Beach hopping and relaxing in a hammock.</li>
+                            </ul>
+                            <div class="bg-blue-50 p-4 rounded-lg mt-4">
+                                <h5 class="font-bold mb-2">Accommodation Details (Aug 19 - Aug 24)</h5>
+                                <div class="grid sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="text-sm font-medium text-gray-600">Hotel Name</label>
+                                        <input type="text" id="hotel-name-islands" placeholder="e.g., The Royal Sands" class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                    </div>
+                                    <div>
+                                        <label class="text-sm font-medium text-gray-600">Booking Ref.</label>
+                                        <input type="text" id="hotel-ref-islands" placeholder="e.g., #HOTEL3" class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                    </div>
+                                </div>
+                                 <div class="mt-4">
+                                    <label class="text-sm font-medium text-gray-600">Document Link</label>
+                                    <input type="url" id="hotel-link-islands" placeholder="Paste link to hotel confirmation..." class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                </div>
+                            </div>
+                            <h4 class="font-bold text-lg pt-4">Sihanoukville (1 night)</h4>
+                             <p>Return from the islands and stay overnight before heading back to Phnom Penh.</p>
+                             <div class="bg-blue-50 p-4 rounded-lg mt-4">
+                                <h5 class="font-bold mb-2">Accommodation Details (Aug 24 - Aug 25)</h5>
+                                <div class="grid sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="text-sm font-medium text-gray-600">Hotel Name</label>
+                                        <input type="text" id="hotel-name-sihanouk2" placeholder="e.g., Queenco Hotel" class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                    </div>
+                                    <div>
+                                        <label class="text-sm font-medium text-gray-600">Booking Ref.</label>
+                                        <input type="text" id="hotel-ref-sihanouk2" placeholder="e.g., #HOTEL4" class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                    </div>
+                                </div>
+                                 <div class="mt-4">
+                                    <label class="text-sm font-medium text-gray-600">Document Link</label>
+                                    <input type="url" id="hotel-link-sihanouk2" placeholder="Paste link to hotel confirmation..." class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                </div>
+                            </div>
+                             <div class="mt-4">
+                                <label class="text-sm font-medium text-gray-600">Notes</label>
+                                <textarea id="notes-islands" placeholder="Any thoughts or recommendations..." class="savable mt-1 w-full p-2 rounded border border-gray-300 focus:ring-blue-500 focus:border-blue-500"></textarea>
+                            </div>
+                            <p><strong>Food to Try:</strong> Fresh seafood BBQ on the beach.</p>
+                        </div>
+                    </div>
+                </div>
+                <div id="week3" class="accordion-item bg-white rounded-xl shadow-md overflow-hidden">
+                    <button class="accordion-header w-full p-6 text-left flex justify-between items-center">
+                        <span class="text-xl font-bold">Aug 25 - Sep 1: Phnom Penh & Battambang</span>
+                        <span class="text-2xl font-light transform transition-transform duration-300">▼</span>
+                    </button>
+                    <div class="accordion-content">
+                        <div class="p-6 pt-0 text-gray-700 space-y-4">
+                           <p>Travel back through the capital and head to the charming, artistic city of Battambang.</p>
+                           <div class="bg-blue-50 p-4 rounded-lg space-y-4">
+                                <div>
+                                    <h5 class="font-bold mb-2">Transportation Details (Aug 25: Sihanoukville → Phnom Penh)</h5>
+                                    <div class="grid sm:grid-cols-3 gap-4">
+                                        <div>
+                                            <label class="text-sm font-medium text-gray-600">Bus Company</label>
+                                            <input type="text" id="bus-company-sihanouk-pp" placeholder="e.g., Giant Ibis" class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                        </div>
+                                        <div>
+                                            <label class="text-sm font-medium text-gray-600">Departure Time</label>
+                                            <input type="time" id="bus-time-sihanouk-pp" class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                        </div>
+                                        <div>
+                                            <label class="text-sm font-medium text-gray-600">Booking Ref.</label>
+                                            <input type="text" id="bus-ref-sihanouk-pp" placeholder="e.g., #67890" class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                        </div>
+                                    </div>
+                                    <div class="mt-4">
+                                        <label class="text-sm font-medium text-gray-600">Document Link</label>
+                                        <input type="url" id="bus-link-sihanouk-pp" placeholder="Paste link to bus ticket..." class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                    </div>
+                                </div>
+                                <div>
+                                    <h5 class="font-bold mb-2">Transportation Details (Aug 29: Phnom Penh → Battambang)</h5>
+                                    <div class="grid sm:grid-cols-3 gap-4">
+                                        <div>
+                                            <label class="text-sm font-medium text-gray-600">Bus Company</label>
+                                            <input type="text" id="bus-company-pp-batt" placeholder="e.g., Mekong Express" class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                        </div>
+                                        <div>
+                                            <label class="text-sm font-medium text-gray-600">Departure Time</label>
+                                            <input type="time" id="bus-time-pp-batt" class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                        </div>
+                                        <div>
+                                            <label class="text-sm font-medium text-gray-600">Booking Ref.</label>
+                                            <input type="text" id="bus-ref-pp-batt" placeholder="e.g., #ABCDE" class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                        </div>
+                                    </div>
+                                    <div class="mt-4">
+                                        <label class="text-sm font-medium text-gray-600">Document Link</label>
+                                        <input type="url" id="bus-link-pp-batt" placeholder="Paste link to bus ticket..." class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                    </div>
+                                </div>
+                            </div>
+                            <h4 class="font-bold text-lg pt-4">Phnom Penh (4 nights)</h4>
+                            <ul class="space-y-2 list-inside">
+                                <li class="flex items-center"><input type="checkbox" id="activity-pp2-relax" class="savable mr-3 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">Relax, do some last-minute shopping, or revisit a favorite spot.</li>
+                            </ul>
+                            <div class="bg-blue-50 p-4 rounded-lg mt-4">
+                                <h5 class="font-bold mb-2">Accommodation Details (Aug 25 - Aug 29)</h5>
+                                <div class="grid sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="text-sm font-medium text-gray-600">Hotel Name</label>
+                                        <input type="text" id="hotel-name-pp2" placeholder="e.g., Plantation Urban Resort" class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                    </div>
+                                    <div>
+                                        <label class="text-sm font-medium text-gray-600">Booking Ref.</label>
+                                        <input type="text" id="hotel-ref-pp2" placeholder="e.g., #HOTEL5" class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                    </div>
+                                </div>
+                                <div class="mt-4">
+                                    <label class="text-sm font-medium text-gray-600">Document Link</label>
+                                    <input type="url" id="hotel-link-pp2" placeholder="Paste link to hotel confirmation..." class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                </div>
+                            </div>
+                             <h4 class="font-bold text-lg pt-4">Battambang (3 nights)</h4>
+                            <ul class="space-y-2 list-inside">
+                                <li class="flex items-center"><input type="checkbox" id="activity-batt-train" class="savable mr-3 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">Ride the <strong>Bamboo Train (Norry)</strong>.</li>
+                                <li class="flex items-center"><input type="checkbox" id="activity-batt-caves" class="savable mr-3 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">Explore the <strong>Killing Caves of Phnom Sampeau</strong> and see the bat exodus at dusk.</li>
+                                <li class="flex items-center"><input type="checkbox" id="activity-batt-tour" class="savable mr-3 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">Take a countryside tour to see local life and artisans.</li>
+                            </ul>
+                             <div class="bg-blue-50 p-4 rounded-lg mt-4">
+                                <h5 class="font-bold mb-2">Accommodation Details (Aug 29 - Sep 1)</h5>
+                                <div class="grid sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="text-sm font-medium text-gray-600">Hotel Name</label>
+                                        <input type="text" id="hotel-name-batt" placeholder="e.g., Bambu Hotel" class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                    </div>
+                                    <div>
+                                        <label class="text-sm font-medium text-gray-600">Booking Ref.</label>
+                                        <input type="text" id="hotel-ref-batt" placeholder="e.g., #HOTEL6" class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                    </div>
+                                </div>
+                                 <div class="mt-4">
+                                    <label class="text-sm font-medium text-gray-600">Document Link</label>
+                                    <input type="url" id="hotel-link-batt" placeholder="Paste link to hotel confirmation..." class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                </div>
+                            </div>
+                             <div class="mt-4">
+                                <label class="text-sm font-medium text-gray-600">Notes</label>
+                                <textarea id="notes-batt" placeholder="Any thoughts or recommendations..." class="savable mt-1 w-full p-2 rounded border border-gray-300 focus:ring-blue-500 focus:border-blue-500"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="week4" class="accordion-item bg-white rounded-xl shadow-md overflow-hidden">
+                    <button class="accordion-header w-full p-6 text-left flex justify-between items-center">
+                        <span class="text-xl font-bold">Sep 1 - Sep 8: Siem Reap & The Temples of Angkor</span>
+                        <span class="text-2xl font-light transform transition-transform duration-300">▼</span>
+                    </button>
+                    <div class="accordion-content">
+                        <div class="p-6 pt-0 text-gray-700 space-y-4">
+                            <p>End your journey exploring the magnificent ancient temples of the Khmer Empire.</p>
+                            <div class="bg-blue-50 p-4 rounded-lg space-y-4">
+                                <div>
+                                    <h5 class="font-bold mb-2">Transportation Details (Sep 1: Battambang → Siem Reap)</h5>
+                                    <div class="grid sm:grid-cols-3 gap-4">
+                                        <div>
+                                            <label class="text-sm font-medium text-gray-600">Bus Company</label>
+                                            <input type="text" id="bus-company-batt-sr" placeholder="e.g., Giant Ibis" class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                        </div>
+                                        <div>
+                                            <label class="text-sm font-medium text-gray-600">Departure Time</label>
+                                            <input type="time" id="bus-time-batt-sr" class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                        </div>
+                                        <div>
+                                            <label class="text-sm font-medium text-gray-600">Booking Ref.</label>
+                                            <input type="text" id="bus-ref-batt-sr" placeholder="e.g., #FGHIJ" class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                        </div>
+                                    </div>
+                                     <div class="mt-4">
+                                        <label class="text-sm font-medium text-gray-600">Document Link</label>
+                                        <input type="url" id="bus-link-batt-sr" placeholder="Paste link to bus ticket..." class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                    </div>
+                                </div>
+                                <div class="pt-2">
+                                    <h5 class="font-bold mb-2">Departure Details (Sep 8: Siem Reap Int'l Airport - SAI)</h5>
+                                    <div class="grid sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="text-sm font-medium text-gray-600">Flight Number</label>
+                                            <input type="text" id="departure-flight-no" placeholder="e.g., SQ167" class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                        </div>
+                                        <div>
+                                            <label class="text-sm font-medium text-gray-600">Departure Time</label>
+                                            <input type="time" id="departure-flight-time" class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                        </div>
+                                    </div>
+                                    <div class="mt-4">
+                                        <label class="text-sm font-medium text-gray-600">Document Link</label>
+                                        <input type="url" id="departure-flight-link" placeholder="Paste link to flight ticket..." class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                    </div>
+                                </div>
+                            </div>
+                            <ul class="space-y-2 list-inside pt-4">
+                                <li class="flex items-center"><input type="checkbox" id="activity-sr-angkor" class="savable mr-3 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"><strong>Angkor Wat:</strong> Get the 3-day pass ($62 USD). See the sunrise.</li>
+                                <li class="flex items-center"><input type="checkbox" id="activity-sr-thom" class="savable mr-3 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"><strong>Angkor Thom:</strong> Explore Bayon Temple & Terrace of the Elephants.</li>
+                                <li class="flex items-center"><input type="checkbox" id="activity-sr-ta-prohm" class="savable mr-3 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"><strong>Ta Prohm:</strong> The famous "Tomb Raider" temple.</li>
+                                <li class="flex items-center"><input type="checkbox" id="activity-sr-pub-street" class="savable mr-3 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"><strong>Pub Street & Night Markets:</strong> Experience the lively evening atmosphere.</li>
+                                <li class="flex items-center"><input type="checkbox" id="activity-sr-circus" class="savable mr-3 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"><strong>Phare, The Cambodian Circus:</strong> A must-see show.</li>
+                                <li class="flex items-center"><input type="checkbox" id="activity-sr-lake" class="savable mr-3 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"><strong>Tonlé Sap Lake:</strong> Visit a floating village.</li>
+                            </ul>
+                             <div class="bg-blue-50 p-4 rounded-lg mt-4">
+                                <h5 class="font-bold mb-2">Accommodation Details (Sep 1 - Sep 8)</h5>
+                                <div class="grid sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="text-sm font-medium text-gray-600">Hotel Name</label>
+                                        <input type="text" id="hotel-name-sr" placeholder="e.g., Jaya House River Park" class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                    </div>
+                                    <div>
+                                        <label class="text-sm font-medium text-gray-600">Booking Ref.</label>
+                                        <input type="text" id="hotel-ref-sr" placeholder="e.g., #HOTEL7" class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                    </div>
+                                </div>
+                                 <div class="mt-4">
+                                    <label class="text-sm font-medium text-gray-600">Document Link</label>
+                                    <input type="url" id="hotel-link-sr" placeholder="Paste link to hotel confirmation..." class="savable mt-1 w-full p-2 rounded border border-blue-200 focus:ring-blue-500 focus:border-blue-500">
+                                </div>
+                            </div>
+                             <div class="mt-4">
+                                <label class="text-sm font-medium text-gray-600">Notes</label>
+                                <textarea id="notes-sr" placeholder="Any thoughts or recommendations..." class="savable mt-1 w-full p-2 rounded border border-gray-300 focus:ring-blue-500 focus:border-blue-500"></textarea>
+                            </div>
+                            <p><strong>Food to Try:</strong> Fish Amok, Lok Lak, Khmer Curry.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="budget" class="content-section">
+            <div class="text-center mb-12">
+                <h1 class="text-4xl md:text-5xl font-bold text-blue-600 mb-2">Budget Planner</h1>
+                <p class="text-lg text-gray-600">Visualize your estimated costs and track your actual spending.</p>
+            </div>
+            <div class="grid lg:grid-cols-2 gap-8 items-center">
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    <h2 class="text-2xl font-bold text-center mb-4">Estimated Cost Breakdown</h2>
+                    <div class="chart-container">
+                        <canvas id="budgetChart"></canvas>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    <h2 class="text-2xl font-bold text-center mb-4">Your Spending Tracker</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left" id="budgetTable">
+                            <thead>
+                                <tr class="border-b">
+                                    <th class="p-3">Category</th>
+                                    <th class="p-3 text-right">Estimated (GBP)</th>
+                                    <th class="p-3 text-right">Actual (GBP)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="border-b bg-gray-50 font-medium">
+                                    <td class="p-3" colspan="3">Accommodation</td>
+                                </tr>
+                                <tr class="border-b">
+                                    <td class="p-3 pl-6">Phnom Penh Hotel (1st)</td>
+                                    <td class="p-3"><input type="number" class="budget-input estimated-input w-full text-right bg-blue-50 rounded p-1" value="120"></td>
+                                    <td class="p-3"><input type="number" class="budget-input actual-input w-full text-right bg-blue-50 rounded p-1" placeholder="0"></td>
+                                </tr>
+                                 <tr class="border-b">
+                                    <td class="p-3 pl-6">Sihanoukville Hotel (1st)</td>
+                                    <td class="p-3"><input type="number" class="budget-input estimated-input w-full text-right bg-blue-50 rounded p-1" value="25"></td>
+                                    <td class="p-3"><input type="number" class="budget-input actual-input w-full text-right bg-blue-50 rounded p-1" placeholder="0"></td>
+                                </tr>
+                                <tr class="border-b">
+                                    <td class="p-3 pl-6">Islands Hotel</td>
+                                    <td class="p-3"><input type="number" class="budget-input estimated-input w-full text-right bg-blue-50 rounded p-1" value="90"></td>
+                                    <td class="p-3"><input type="number" class="budget-input actual-input w-full text-right bg-blue-50 rounded p-1" placeholder="0"></td>
+                                </tr>
+                                 <tr class="border-b">
+                                    <td class="p-3 pl-6">Sihanoukville Hotel (2nd)</td>
+                                    <td class="p-3"><input type="number" class="budget-input estimated-input w-full text-right bg-blue-50 rounded p-1" value="25"></td>
+                                    <td class="p-3"><input type="number" class="budget-input actual-input w-full text-right bg-blue-50 rounded p-1" placeholder="0"></td>
+                                </tr>
+                                <tr class="border-b">
+                                    <td class="p-3 pl-6">Phnom Penh Hotel (2nd)</td>
+                                    <td class="p-3"><input type="number" class="budget-input estimated-input w-full text-right bg-blue-50 rounded p-1" value="100"></td>
+                                    <td class="p-3"><input type="number" class="budget-input actual-input w-full text-right bg-blue-50 rounded p-1" placeholder="0"></td>
+                                </tr>
+                                <tr class="border-b">
+                                    <td class="p-3 pl-6">Battambang Hotel</td>
+                                    <td class="p-3"><input type="number" class="budget-input estimated-input w-full text-right bg-blue-50 rounded p-1" value="65"></td>
+                                    <td class="p-3"><input type="number" class="budget-input actual-input w-full text-right bg-blue-50 rounded p-1" placeholder="0"></td>
+                                </tr>
+                                <tr class="border-b">
+                                    <td class="p-3 pl-6">Siem Reap Hotel</td>
+                                    <td class="p-3"><input type="number" class="budget-input estimated-input w-full text-right bg-blue-50 rounded p-1" value="180"></td>
+                                    <td class="p-3"><input type="number" class="budget-input actual-input w-full text-right bg-blue-50 rounded p-1" placeholder="0"></td>
+                                </tr>
+                                <tr class="border-b">
+                                    <td class="p-3 font-medium">Food & Drink</td>
+                                    <td class="p-3"><input type="number" class="budget-input estimated-input w-full text-right bg-blue-50 rounded p-1" value="800"></td>
+                                    <td class="p-3"><input type="number" class="budget-input actual-input w-full text-right bg-blue-50 rounded p-1" placeholder="0"></td>
+                                </tr>
+                                <tr class="border-b bg-gray-50 font-medium">
+                                    <td class="p-3" colspan="3">Transportation</td>
+                                </tr>
+                                <tr class="border-b">
+                                    <td class="p-3 pl-6">T-port: PP to Sihanoukville</td>
+                                    <td class="p-3"><input type="number" class="budget-input estimated-input w-full text-right bg-blue-50 rounded p-1" value="40"></td>
+                                    <td class="p-3"><input type="number" class="budget-input actual-input w-full text-right bg-blue-50 rounded p-1" placeholder="0"></td>
+                                </tr>
+                                <tr class="border-b">
+                                    <td class="p-3 pl-6">T-port: Sihanoukville to PP</td>
+                                    <td class="p-3"><input type="number" class="budget-input estimated-input w-full text-right bg-blue-50 rounded p-1" value="40"></td>
+                                    <td class="p-3"><input type="number" class="budget-input actual-input w-full text-right bg-blue-50 rounded p-1" placeholder="0"></td>
+                                </tr>
+                                <tr class="border-b">
+                                    <td class="p-3 pl-6">T-port: PP to Battambang</td>
+                                    <td class="p-3"><input type="number" class="budget-input estimated-input w-full text-right bg-blue-50 rounded p-1" value="30"></td>
+                                    <td class="p-3"><input type="number" class="budget-input actual-input w-full text-right bg-blue-50 rounded p-1" placeholder="0"></td>
+                                </tr>
+                                <tr class="border-b">
+                                    <td class="p-3 pl-6">T-port: Battambang to SR</td>
+                                    <td class="p-3"><input type="number" class="budget-input estimated-input w-full text-right bg-blue-50 rounded p-1" value="20"></td>
+                                    <td class="p-3"><input type="number" class="budget-input actual-input w-full text-right bg-blue-50 rounded p-1" placeholder="0"></td>
+                                </tr>
+                                <tr class="border-b">
+                                    <td class="p-3 pl-6">T-port: Local (Tuk-tuks)</td>
+                                    <td class="p-3"><input type="number" class="budget-input estimated-input w-full text-right bg-blue-50 rounded p-1" value="70"></td>
+                                    <td class="p-3"><input type="number" class="budget-input actual-input w-full text-right bg-blue-50 rounded p-1" placeholder="0"></td>
+                                </tr>
+                                <tr class="border-b bg-gray-50 font-medium">
+                                    <td class="p-3" colspan="3">Activities</td>
+                                </tr>
+                                 <tr class="border-b">
+                                    <td class="p-3 pl-6">Activities: Phnom Penh</td>
+                                    <td class="p-3"><input type="number" class="budget-input estimated-input w-full text-right bg-blue-50 rounded p-1" value="80"></td>
+                                    <td class="p-3"><input type="number" class="budget-input actual-input w-full text-right bg-blue-50 rounded p-1" placeholder="0"></td>
+                                </tr>
+                                <tr class="border-b">
+                                    <td class="p-3 pl-6">Activities: Islands</td>
+                                    <td class="p-3"><input type="number" class="budget-input estimated-input w-full text-right bg-blue-50 rounded p-1" value="50"></td>
+                                    <td class="p-3"><input type="number" class="budget-input actual-input w-full text-right bg-blue-50 rounded p-1" placeholder="0"></td>
+                                </tr>
+                                <tr class="border-b">
+                                    <td class="p-3 pl-6">Activities: Battambang</td>
+                                    <td class="p-3"><input type="number" class="budget-input estimated-input w-full text-right bg-blue-50 rounded p-1" value="50"></td>
+                                    <td class="p-3"><input type="number" class="budget-input actual-input w-full text-right bg-blue-50 rounded p-1" placeholder="0"></td>
+                                </tr>
+                                <tr class="border-b">
+                                    <td class="p-3 pl-6">Activities: Siem Reap</td>
+                                    <td class="p-3"><input type="number" class="budget-input estimated-input w-full text-right bg-blue-50 rounded p-1" value="120"></td>
+                                    <td class="p-3"><input type="number" class="budget-input actual-input w-full text-right bg-blue-50 rounded p-1" placeholder="0"></td>
+                                </tr>
+                                <tr>
+                                    <td class="p-3 font-medium">Miscellaneous</td>
+                                    <td class="p-3"><input type="number" class="budget-input estimated-input w-full text-right bg-blue-50 rounded p-1" value="100"></td>
+                                    <td class="p-3"><input type="number" class="budget-input actual-input w-full text-right bg-blue-50 rounded p-1" placeholder="0"></td>
+                                </tr>
+                            </tbody>
+                            <tfoot>
+                                <tr class="border-t-2 font-bold">
+                                    <td class="p-3">Total</td>
+                                    <td id="estimatedTotal" class="p-3 text-right">£2,000</td>
+                                    <td id="actualTotal" class="p-3 text-right text-blue-600">£0</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="checklist" class="content-section">
+            <div class="text-center mb-12">
+                <h1 class="text-4xl md:text-5xl font-bold text-blue-600 mb-2">Pre-Trip Checklist</h1>
+                <p class="text-lg text-gray-600">Essential tasks and information to prepare for your trip.</p>
+            </div>
+            <div class="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow-lg">
+                <h3 class="text-2xl font-bold mb-4">Key Tasks</h3>
+                <ul class="space-y-4">
+                    <li class="flex items-center text-lg"><input type="checkbox" id="check-visa" class="savable mr-4 h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500">Check visa requirements for your nationality.</li>
+                    <li class="flex items-center text-lg"><input type="checkbox" id="check-flights" class="savable mr-4 h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500">Book international flights to Siem Reap or Phnom Penh.</li>
+                    <li class="flex items-center text-lg"><input type="checkbox" id="check-insurance" class="savable mr-4 h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500">Purchase comprehensive travel insurance.</li>
+                    <li class="flex items-center text-lg"><input type="checkbox" id="check-doctor" class="savable mr-4 h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500">Consult a doctor about recommended vaccinations.</li>
+                    <li class="flex items-center text-lg"><input type="checkbox" id="check-usd" class="savable mr-4 h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500">Prepare crisp, new USD bills for currency.</li>
+                    <li class="flex items-center text-lg"><input type="checkbox" id="check-sim" class="savable mr-4 h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500">Plan to get a local SIM card at the airport.</li>
+                </ul>
+                 <h3 class="text-2xl font-bold mt-8 mb-4">Packing List</h3>
+                 <div class="grid sm:grid-cols-2 gap-4">
+                    <ul class="space-y-3">
+                        <li class="flex items-center"><input type="checkbox" id="pack-clothes" class="savable mr-3 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">Lightweight clothing</li>
+                        <li class="flex items-center"><input type="checkbox" id="pack-swimwear" class="savable mr-3 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">Swimwear</li>
+                        <li class="flex items-center"><input type="checkbox" id="pack-temple" class="savable mr-3 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">Temple-appropriate attire (shoulders/knees covered)</li>
+                        <li class="flex items-center"><input type="checkbox" id="pack-shoes" class="savable mr-3 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">Comfortable walking shoes</li>
+                        <li class="flex items-center"><input type="checkbox" id="pack-sandals" class="savable mr-3 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">Sandals / Flip-flops</li>
+                    </ul>
+                     <ul class="space-y-3">
+                        <li class="flex items-center"><input type="checkbox" id="pack-sunscreen" class="savable mr-3 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">Sunscreen & Hat</li>
+                        <li class="flex items-center"><input type="checkbox" id="pack-repellent" class="savable mr-3 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">Insect repellent</li>
+                        <li class="flex items-center"><input type="checkbox" id="pack-firstaid" class="savable mr-3 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">Basic first-aid kit</li>
+                        <li class="flex items-center"><input type="checkbox" id="pack-powerbank" class="savable mr-3 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">Portable power bank</li>
+                        <li class="flex items-center"><input type="checkbox" id="pack-bottle" class="savable mr-3 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">Reusable water bottle</li>
+                    </ul>
+                 </div>
+            </div>
+        </section>
+
+        <section id="safety" class="content-section">
+            <div class="text-center mb-12">
+                <h1 class="text-4xl md:text-5xl font-bold text-blue-600 mb-2">Safety</h1>
+                <p class="text-lg text-gray-600">Essential contacts, phrases, and cultural tips.</p>
+            </div>
+            <div class="space-y-4 max-w-4xl mx-auto">
+                <div class="accordion-item bg-white rounded-xl shadow-md overflow-hidden">
+                    <button class="accordion-header w-full p-6 text-left flex justify-between items-center">
+                        <span class="text-xl font-bold">Emergency Contacts</span>
+                        <span class="text-2xl font-light transform transition-transform duration-300">▼</span>
+                    </button>
+                    <div class="accordion-content">
+                        <div class="p-6 pt-0 text-gray-700 space-y-4">
+                            <p><strong>Police:</strong> 117</p>
+                            <p><strong>Ambulance:</strong> 119</p>
+                            <p><strong>Fire:</strong> 118</p>
+                            <div class="border-t pt-4">
+                                <label class="text-sm font-medium text-gray-600">Your Embassy Contact</label>
+                                <input type="text" id="safety-embassy" placeholder="e.g., British Embassy, +855 23 427124" class="savable mt-1 w-full p-2 rounded border border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                             <div>
+                                <label class="text-sm font-medium text-gray-600">Personal Emergency Contact</label>
+                                <input type="text" id="safety-personal" placeholder="Name and phone number" class="savable mt-1 w-full p-2 rounded border border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="accordion-item bg-white rounded-xl shadow-md overflow-hidden">
+                    <button class="accordion-header w-full p-6 text-left flex justify-between items-center">
+                        <span class="text-xl font-bold">Cultural Etiquette</span>
+                        <span class="text-2xl font-light transform transition-transform duration-300">▼</span>
+                    </button>
+                    <div class="accordion-content">
+                        <div class="p-6 pt-0 text-gray-700 space-y-2 list-disc list-inside">
+                            <li>Dress modestly when visiting temples (cover shoulders and knees).</li>
+                            <li>The traditional greeting is the "Sampeah" (placing palms together like a prayer). A smile and a nod are also fine.</li>
+                            <li>Don't use your feet to point at people or things.</li>
+                            <li>Ask for permission before taking photos of people, especially monks.</li>
+                            <li>Haggling is common in markets, but always do so with a smile and good humour.</li>
+                        </div>
+                    </div>
+                </div>
+                <div class="accordion-item bg-white rounded-xl shadow-md overflow-hidden">
+                    <button class="accordion-header w-full p-6 text-left flex justify-between items-center">
+                        <span class="text-xl font-bold">Basic Khmer Phrases</span>
+                        <span class="text-2xl font-light transform transition-transform duration-300">▼</span>
+                    </button>
+                    <div class="accordion-content">
+                        <div class="p-6 pt-0 text-gray-700 space-y-2">
+                           <p><strong>Hello:</strong> Suos-dey</p>
+                           <p><strong>Thank you:</strong> Or-kun</p>
+                           <p><strong>Goodbye:</strong> Lea-hai</p>
+                           <p><strong>Yes:</strong> Baht (male) / Jah (female)</p>
+                           <p><strong>No:</strong> Ot-tei</p>
+                           <p><strong>How much?:</strong> Bo-man?</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="resources" class="content-section">
+            <div class="text-center mb-12">
+                <h1 class="text-4xl md:text-5xl font-bold text-blue-600 mb-2">Travel Resources</h1>
+                <p class="text-lg text-gray-600">A collection of useful links for your trip.</p>
+            </div>
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h3 class="text-xl font-bold mb-4 text-blue-700">Transportation Booking</h3>
+                    <ul class="space-y-3">
+                        <li><a href="https://12go.asia" target="_blank" class="text-gray-700 hover:text-blue-600 hover:underline"><strong>12Go Asia:</strong> Compare and book buses, ferries, and trains.</a></li>
+                        <li><a href="https://bookmebus.com" target="_blank" class="text-gray-700 hover:text-blue-600 hover:underline"><strong>BookMeBus:</strong> Local platform for bus tickets.</a></li>
+                        <li><a href="https://www.giantibis.com/" target="_blank" class="text-gray-700 hover:text-blue-600 hover:underline"><strong>Giant Ibis:</strong> Popular and reliable bus company.</a></li>
+                        <li><a href="https://catamekongexpress.com/" target="_blank" class="text-gray-700 hover:text-blue-600 hover:underline"><strong>Mekong Express:</strong> Another major bus operator.</a></li>
+                    </ul>
+                </div>
+                 <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h3 class="text-xl font-bold mb-4 text-green-700">News & Information</h3>
+                    <ul class="space-y-3">
+                        <li><a href="https://www.evisa.gov.kh/" target="_blank" class="text-gray-700 hover:text-blue-600 hover:underline"><strong>Official Cambodia eVisa:</strong> Apply for your tourist visa online.</a></li>
+                        <li><a href="https://www.phnompenhpost.com/" target="_blank" class="text-gray-700 hover:text-blue-600 hover:underline"><strong>The Phnom Penh Post:</strong> English-language local news.</a></li>
+                        <li><a href="https://www.khmertimeskh.com/" target="_blank" class="text-gray-700 hover:text-blue-600 hover:underline"><strong>Khmer Times:</strong> Another source for local news.</a></li>
+                    </ul>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h3 class="text-xl font-bold mb-4 text-red-700">Health & Safety</h3>
+                    <ul class="space-y-3">
+                        <li><a href="https://www.gov.uk/foreign-travel-advice/cambodia" target="_blank" class="text-gray-700 hover:text-blue-600 hover:underline"><strong>UK Gov Travel Advice:</strong> Official safety and entry information.</a></li>
+                        <li><a href="https://wwwnc.cdc.gov/travel/destinations/traveler/none/cambodia" target="_blank" class="text-gray-700 hover:text-blue-600 hover:underline"><strong>CDC Health Information:</strong> Recommended vaccinations and health tips.</a></li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const navLinks = document.querySelectorAll('.nav-link');
+            const sections = document.querySelectorAll('.content-section');
+            const savableElements = document.querySelectorAll('.savable');
+            const clearDataBtn = document.getElementById('clear-data-btn');
+
+            function saveData() {
+                savableElements.forEach(el => {
+                    const id = el.id;
+                    if (el.type === 'checkbox') {
+                        localStorage.setItem(id, el.checked);
+                    } else {
+                        localStorage.setItem(id, el.value);
+                    }
+                });
+            }
+
+            function loadData() {
+                savableElements.forEach(el => {
+                    const id = el.id;
+                    const savedValue = localStorage.getItem(id);
+                    if (savedValue !== null) {
+                        if (el.type === 'checkbox') {
+                            el.checked = savedValue === 'true';
+                        } else {
+                            el.value = savedValue;
+                        }
+                    }
+                });
+            }
+
+            savableElements.forEach(el => {
+                el.addEventListener('input', saveData);
+            });
+
+            clearDataBtn.addEventListener('click', () => {
+                if (confirm('Are you sure you want to clear all saved data? This cannot be undone.')) {
+                    localStorage.clear();
+                    window.location.reload();
+                }
+            });
+
+            function updateContent(hash) {
+                let targetHash = hash || '#dashboard';
+                
+                sections.forEach(section => {
+                    if ('#' + section.id === targetHash) {
+                        section.classList.add('active');
+                    } else {
+                        section.classList.remove('active');
+                    }
+                });
+
+                navLinks.forEach(link => {
+                    if (link.getAttribute('href') === targetHash) {
+                        link.classList.add('active');
+                    } else {
+                        link.classList.remove('active');
+                    }
+                });
+            }
+
+            navLinks.forEach(link => {
+                link.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const targetHash = this.getAttribute('href');
+                    history.pushState(null, null, targetHash);
+                    updateContent(targetHash);
+                });
+            });
+            
+            window.addEventListener('popstate', () => {
+                updateContent(window.location.hash);
+            });
+            
+            updateContent(window.location.hash);
+
+            const accordionItems = document.querySelectorAll('.accordion-item');
+            accordionItems.forEach(item => {
+                const header = item.querySelector('.accordion-header');
+                const content = item.querySelector('.accordion-content');
+                const icon = header.querySelector('span:last-child');
+
+                header.addEventListener('click', () => {
+                    const isExpanded = content.style.maxHeight;
+                    if (isExpanded) {
+                        content.style.maxHeight = null;
+                        icon.style.transform = 'rotate(0deg)';
+                    } else {
+                        content.style.maxHeight = content.scrollHeight + 'px';
+                        icon.style.transform = 'rotate(180deg)';
+                    }
+                });
+            });
+
+            const estimatedInputs = document.querySelectorAll('.estimated-input');
+            const actualInputs = document.querySelectorAll('.actual-input');
+            const estimatedTotalEl = document.getElementById('estimatedTotal');
+            const actualTotalEl = document.getElementById('actualTotal');
+
+            function calculateTotals() {
+                let estimatedTotal = 0;
+                let actualTotal = 0;
+                
+                estimatedInputs.forEach(input => {
+                    estimatedTotal += parseFloat(input.value) || 0;
+                });
+                
+                actualInputs.forEach(input => {
+                    actualTotal += parseFloat(input.value) || 0;
+                });
+
+                estimatedTotalEl.textContent = '£' + estimatedTotal.toLocaleString();
+                actualTotalEl.textContent = '£' + actualTotal.toLocaleString();
+                
+                updateChart();
+            }
+
+            estimatedInputs.forEach(input => {
+                input.addEventListener('input', calculateTotals);
+            });
+            
+            actualInputs.forEach(input => {
+                input.addEventListener('input', calculateTotals);
+            });
+
+            function updateChart() {
+                const newData = Array.from(estimatedInputs).map(input => parseFloat(input.value) || 0);
+                window.budgetChartInstance.data.datasets[0].data = newData;
+                window.budgetChartInstance.update();
+            }
+
+            const initialBudgetData = {
+                labels: [
+                    'Food & Drink', 'PP Hotel 1', 'Sihanoukville 1', 'Islands Hotel', 'Sihanoukville 2', 'PP Hotel 2', 'Battambang Hotel', 'Siem Reap Hotel', 'Activities: PP', 'Activities: Islands', 'Activities: Batt.', 'Activities: SR', 'T-port: PP-Sihan.', 'T-port: Sihan.-PP', 'T-port: PP-Batt.', 'T-port: Batt.-SR', 'T-port: Local', 'Miscellaneous'
+                ],
+                datasets: [{
+                    label: 'Estimated Budget',
+                    data: [800, 120, 25, 90, 25, 100, 65, 180, 80, 50, 50, 120, 40, 40, 30, 20, 70, 100],
+                    backgroundColor: [
+                        '#4285F4', // Food
+                        '#EA4335', // PP1
+                        '#FBBC05', // Sihanoukville 1
+                        '#F06292', // Islands
+                        '#FBBC05', // Sihanoukville 2
+                        '#F48FB1', // PP2
+                        '#34A853', // Battambang
+                        '#9CCC65', // Siem Reap
+                        '#FF7043', // Activities PP
+                        '#FF9800', // Activities Islands
+                        '#FFC107', // Activities Batt
+                        '#FFEB3B', // Activities SR
+                        '#00ACC1', // T-port 1
+                        '#00897B', // T-port 2
+                        '#039BE5', // T-port 3
+                        '#43A047', // T-port 4
+                        '#7CB342', // T-port 5
+                        '#AB47BC'  // Misc
+                    ],
+                    hoverOffset: 4,
+                    borderColor: '#f8f9fa',
+                    borderWidth: 4,
+                }]
+            };
+
+            const budgetChartCtx = document.getElementById('budgetChart').getContext('2d');
+            window.budgetChartInstance = new Chart(budgetChartCtx, {
+                type: 'doughnut',
+                data: initialBudgetData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                font: {
+                                    family: 'Inter',
+                                },
+                                boxWidth: 15,
+                                padding: 15
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed !== null) {
+                                        label += new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(context.parsed);
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            loadData();
+            calculateTotals();
+        });
+    </script>
+</body>
+</html>
